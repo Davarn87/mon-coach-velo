@@ -15,14 +15,19 @@ model = genai.GenerativeModel('gemini-pro')
 
 # --- FONCTION : RÉCUPÉRER LA DERNIÈRE SÉANCE RÉELLE ---
 def get_last_activity():
-    url = f"https://intervals.icu/api/v1/athlete/{INTERVALS_ID}/activities?limit=1"
+    # On définit une date de départ très ancienne (2000-01-01) pour être sûr de trouver
+    url = f"https://intervals.icu/api/v1/athlete/{INTERVALS_ID}/activities?limit=1&oldest=2000-01-01"
+    
     response = requests.get(url, auth=HTTPBasicAuth('athlete', INTERVALS_KEY))
     
     if response.status_code == 200:
-        return response.json()[0]
+        data = response.json()
+        if data: # On vérifie que la liste n'est pas vide
+            return data[0]
+        return None
     else:
         st.error(f"Erreur API : Code {response.status_code}")
-        st.write(response.text) # Ceci affichera le détail de l'erreur
+        st.write(response.text)
         return None
 
 # --- FONCTION : ANALYSE IA PAR GEMINI ---
