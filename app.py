@@ -20,6 +20,13 @@ def get_last_activity():
     if response.status_code == 200:
         return response.json()[0]
     return None
+    
+    if response.status_code == 200:
+    return response.json()[0]
+else:
+    st.error(f"Erreur API : Code {response.status_code}")
+    st.write(response.text) # Ceci affichera le détail de l'erreur
+    return None
 
 # --- FONCTION : ANALYSE IA PAR GEMINI ---
 def get_ia_feedback(activity_data, profil):
