@@ -18,7 +18,7 @@ def get_last_activity():
     # On définit une date de départ très ancienne (2000-01-01) pour être sûr de trouver
     url = f"https://intervals.icu/api/v1/athlete/{INTERVALS_ID}/activities?limit=1&oldest=2000-01-01"
     
-    response = requests.get(url, auth=HTTPBasicAuth('athlete', INTERVALS_KEY))
+    response = requests.get(url, auth('athlete', INTERVALS_KEY))
     
     if response.status_code == 200:
         data = response.json()
