@@ -14,20 +14,33 @@ genai.configure(api_key=GEMINI_KEY)
 model = genai.GenerativeModel('gemini-pro')
 
 # --- FONCTION : RÉCUPÉRER LA DERNIÈRE SÉANCE RÉELLE ---
+import base64
+
 def get_last_activity():
-    # On définit une date de départ très ancienne (2000-01-01) pour être sûr de trouver
+    # 1. Préparation de la clé (Format athlete:CLE)
+    auth_str = f"athlete:{INTERVALS_KEY}"
+    b64_auth = base64.b64encode(auth_str.encode()).decode()
+    
+    # 2. Configuration des Headers (C'est ici que le 403 se débloque)
+    headers = {
+        "Authorization": f"Basic {b64_auth}",
+        "Content-Type": "application/json"
+    }
+    
     url = f"https://intervals.icu/api/v1/athlete/{INTERVALS_ID}/activities?limit=1&oldest=2000-01-01"
     
-    response = requests.get(url, auth=('athlete', INTERVALS_KEY))
-    
-    if response.status_code == 200:
-        data = response.json()
-        if data: # On vérifie que la liste n'est pas vide
-            return data[0]
-        return None
-    else:
-        st.error(f"Erreur API : Code {response.status_code}")
-        st.write(response.text)
+    try:
+        response = requests.get(url, headers=headers)
+        
+        if response.status_code == 200:
+            data = response.json()
+            return data[0] if data else None
+        else:
+            st.error(f"Erreur API : Code {response.status_code}")
+            st.write("Détail :", response.text)
+            return None
+    except Exception as e:
+        st.error(f"Erreur de connexion : {e}")
         return None
 
 # --- FONCTION : ANALYSE IA PAR GEMINI ---
