@@ -17,12 +17,13 @@ model = genai.GenerativeModel('gemini-pro')
 def get_last_activity():
     url = f"https://intervals.icu/api/v1/athlete/{INTERVALS_ID}/activities?limit=1"
     response = requests.get(url, auth=HTTPBasicAuth('athlete', INTERVALS_KEY))
+    
     if response.status_code == 200:
-    return response.json()[0]
-else:
-    st.error(f"Erreur API : Code {response.status_code}")
-    st.write(response.text) # Ceci affichera le détail de l'erreur
-    return None
+        return response.json()[0]
+    else:
+        st.error(f"Erreur API : Code {response.status_code}")
+        st.write(response.text) # Ceci affichera le détail de l'erreur
+        return None
 
 # --- FONCTION : ANALYSE IA PAR GEMINI ---
 def get_ia_feedback(activity_data, profil):
