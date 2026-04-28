@@ -10,7 +10,8 @@ GEMINI_KEY = st.secrets["GEMINI_KEY"]
 
 # Configuration Gemini
 genai.configure(api_key=GEMINI_KEY)
-model = genai.GenerativeModel('gemini-pro')
+# Remplace l'ancienne ligne par celle-là :
+model = genai.GenerativeModel('gemini-1.5-flash')
 
 # --- FONCTION : OBTENIR UN JETON VALIDE ---
 def get_strava_access_token():
