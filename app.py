@@ -78,16 +78,6 @@ if st.button("🔄 Analyser ma dernière sortie Strava"):
                 """
                 # ... après avoir récupéré 'activity' ...
 
-if activity:
-    st.markdown(f"### 📊 {activity['name']}")
-    
-    # Extraction des données
-    watts = activity.get('average_watts', "N/A")
-    dist = activity.get('distance', 0) / 1000
-    
-    # Préparation du prompt
-    prompt = f"Analyse cette sortie vélo de {dist:.1f}km avec {watts}W de moyenne. Donne un conseil court et motivant."
-
     try:
         # Appel au modèle avec le nom complet
         model = genai.GenerativeModel('models/gemini-1.5-flash')
