@@ -77,9 +77,9 @@ if st.button("🔄 Analyser ma dernière sortie Strava"):
                 Parle de l'intensité, suggère une récupération si nécessaire, et reste motivant.
                 """
                 try:
-                # Appel au modèle avec le nom complet
-                model = genai.GenerativeModel('models/gemini-1.5-flash')
-                response = model.generate_content(prompt)
+                    # Appel au modèle avec le nom complet
+                    model = genai.GenerativeModel('models/gemini-1.5-flash')
+                    response = model.generate_content(prompt)
         
                 st.info(f"🤖 **Le mot du Coach :** {response.text}")
     except Exception as e:
