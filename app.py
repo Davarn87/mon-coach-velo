@@ -78,7 +78,7 @@ if st.button("🔄 Analyser ma dernière sortie Strava"):
                 """
                 try:
                     # Appel au modèle avec le nom complet
-                    model = genai.GenerativeModel('gemini-1.5-flash-latest')
+                    model = genai.GenerativeModel('gemini-pro')
                     response = model.generate_content(prompt)
         
                     st.info(f"🤖 **Le mot du Coach :** {response.text}")
