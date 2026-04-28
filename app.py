@@ -11,7 +11,7 @@ GEMINI_KEY = st.secrets["GEMINI_KEY"]
 # Configuration Gemini
 genai.configure(api_key=GEMINI_KEY)
 # 1. Utilise le nom complet du modèle stable
-model = genai.GenerativeModel('gemini-pro')
+model = genai.GenerativeModel('gemini-1.5-flash-latest')
 
 # 2. Utilise un bloc Try/Except plus robuste pour l'analyse
 try:
@@ -78,7 +78,7 @@ if st.button("🔄 Analyser ma dernière sortie Strava"):
                 """
                 try:
                     # Appel au modèle avec le nom complet
-                    model = genai.GenerativeModel('gemini-pro')
+                    model = genai.GenerativeModel('gemini-1.5-flash-latest')
                     response = model.generate_content(prompt)
         
                     st.info(f"🤖 **Le mot du Coach :** {response.text}")
