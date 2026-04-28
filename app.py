@@ -81,7 +81,8 @@ if st.button("🔄 Analyser ma dernière sortie Strava"):
                     model = genai.GenerativeModel('models/gemini-1.5-flash')
                     response = model.generate_content(prompt)
         
-                st.info(f"🤖 **Le mot du Coach :** {response.text}")
-    except Exception as e:
-        st.error(f"L'IA est indisponible : {e}")
-          
+                    st.info(f"🤖 **Le mot du Coach :** {response.text}")
+                except Exception as e:
+                    st.error(f"L'IA est indisponible : {e}")
+          except Exception as e:
+            st.error(f"Erreur de connexion Strava : {e}")
