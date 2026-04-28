@@ -1,85 +1,65 @@
 import streamlit as st
 import requests
-from requests.auth import HTTPBasicAuth
 import google.generativeai as genai
 
-# --- CONFIGURATION API (Via Streamlit Secrets) ---
-# En production, ces valeurs sont dans le menu "Secrets" de Streamlit
-INTERVALS_ID = st.secrets.get("INTERVALS_ID", "TON_ID")
-INTERVALS_KEY = st.secrets.get("INTERVALS_KEY", "TA_CLE_API")
-GEMINI_KEY = st.secrets.get("GEMINI_KEY", "TA_CLE_GEMINI")
+# --- SECRETS STRAVA ---
+CLIENT_ID = st.secrets["STRAVA_CLIENT_ID"]
+CLIENT_SECRET = st.secrets["STRAVA_CLIENT_SECRET"]
+REFRESH_TOKEN = st.secrets["STRAVA_REFRESH_TOKEN"]
+GEMINI_KEY = st.secrets["GEMINI_KEY"]
 
-# Configuration de Gemini
+# Configuration Gemini
 genai.configure(api_key=GEMINI_KEY)
 model = genai.GenerativeModel('gemini-pro')
 
-# --- FONCTION : RÉCUPÉRER LA DERNIÈRE SÉANCE RÉELLE ---
-import base64
-
-def get_last_activity():
-    # 1. Préparation de la clé (Format athlete:CLE)
-    auth_str = f"athlete:{INTERVALS_KEY}"
-    b64_auth = base64.b64encode(auth_str.encode()).decode()
-    
-    # 2. Configuration des Headers (C'est ici que le 403 se débloque)
-    headers = {
-        "Authorization": f"Basic {b64_auth}",
-        "Content-Type": "application/json"
+# --- FONCTION : OBTENIR UN JETON VALIDE ---
+def get_strava_access_token():
+    payload = {
+        'client_id': CLIENT_ID,
+        'client_secret': CLIENT_SECRET,
+        'refresh_token': REFRESH_TOKEN,
+        'grant_type': "refresh_token",
+        'f': 'json'
     }
-    
-    url = f"https://intervals.icu/api/v1/athlete/{INTERVALS_ID}/activities?limit=1&oldest=2000-01-01"
-    
-    try:
-        response = requests.get(url, headers=headers)
-        
-        if response.status_code == 200:
-            data = response.json()
-            return data[0] if data else None
-        else:
-            st.error(f"Erreur API : Code {response.status_code}")
-            st.write("Détail :", response.text)
-            return None
-    except Exception as e:
-        st.error(f"Erreur de connexion : {e}")
-        return None
+    res = requests.post("https://www.strava.com/oauth/token", data=payload)
+    return res.json()['access_token']
 
-# --- FONCTION : ANALYSE IA PAR GEMINI ---
-def get_ia_feedback(activity_data, profil):
-    prompt = f"""
-    En tant que coach cycliste expert, analyse cette séance :
-    - Nom : {activity_data.get('name')}
-    - Charge (TSS) : {activity_data.get('icu_training_load')}
-    - Puissance Moyenne : {activity_data.get('average_watts')}W
-    - Fréquence Cardiaque Moyenne : {activity_data.get('average_heartrate')} bpm
-    - Profil athlète : {profil['niveau']}, poids {profil['poids']}kg.
-    
-    Donne un feedback court (3 phrases), motivant et technique sur la qualité du travail.
-    """
-    response = model.generate_content(prompt)
-    return response.text
+# --- FONCTION : RÉCUPÉRER LA DERNIÈRE ACTIVITÉ ---
+def get_last_strava_activity(access_token):
+    headers = {'Authorization': f"Bearer {access_token}"}
+    # On récupère les activités du sportif authentifié
+    res = requests.get("https://www.strava.com/api/v3/athlete/activities?per_page=1", headers=headers)
+    if res.status_code == 200:
+        return res.json()[0]
+    return None
 
 # --- INTERFACE ---
-st.title("🤖 Coach Autonome Gemini")
+st.title("🚴‍♂️ Coach IA via Strava")
 
-if st.button("🔄 Synchroniser et Analyser ma dernière sortie"):
-    with st.spinner("Gemini analyse tes watts..."):
-        activity = get_last_activity()
-        
-        if activity:
-            st.markdown('<div class="tile-container">', unsafe_allow_html=True)
-            st.subheader(f"📊 Analyse de : {activity['name']}")
+if st.button("🔄 Analyser ma dernière sortie Strava"):
+    with st.spinner("Récupération des données Strava..."):
+        try:
+            token = get_strava_access_token()
+            activity = get_last_strava_activity(token)
             
-            c1, c2, c3 = st.columns(3)
-            c1.metric("Watts Moy.", f"{activity['average_watts']}W")
-            c2.metric("TSS", activity['icu_training_load'])
-            c3.metric("Rendement (EF)", activity.get('efficiency_factor', 'N/A'))
-            
-            # Appel à l'IA
-            feedback = get_ia_feedback(activity, st.session_state.profil)
-            
-            st.markdown("---")
-            st.markdown(f"**💬 Le mot du Coach Gemini :**")
-            st.write(feedback)
-            st.markdown('</div>', unsafe_allow_html=True)
-        else:
-            st.error("Impossible de récupérer les données d'Intervals.icu. Vérifie tes clés API.")
+            if activity:
+                st.markdown(f"### 📊 {activity['name']}")
+                
+                # Calcul de l'intensité (Strava donne les watts moyens)
+                watts = activity.get('average_watts', 0)
+                dist = activity.get('distance', 0) / 1000 # en km
+                
+                c1, c2, c3 = st.columns(3)
+                c1.metric("Distance", f"{dist:.1f} km")
+                c2.metric("Watts Moy.", f"{watts} W")
+                c3.metric("Dénivelé", f"{activity.get('total_elevation_gain')} m")
+                
+                # Feedback IA
+                prompt = f"Analyse cette sortie vélo de {dist:.1f}km avec {watts}W de moyenne. Donne un conseil de pro court."
+                feedback = model.generate_content(prompt).text
+                
+                st.info(f"🤖 **Conseil Gemini :** {feedback}")
+            else:
+                st.warning("Aucune activité trouvée sur Strava.")
+        except Exception as e:
+            st.error(f"Erreur de connexion Strava : {e}")
