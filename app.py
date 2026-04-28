@@ -11,7 +11,7 @@ GEMINI_KEY = st.secrets["GEMINI_KEY"]
 # Configuration Gemini
 genai.configure(api_key=GEMINI_KEY)
 # 1. Utilise le nom complet du modèle stable
-model = genai.GenerativeModel('gemini-1.5-flash-latest')
+model = genai.GenerativeModel('gemini-pro')
 
 # 2. Utilise un bloc Try/Except plus robuste pour l'analyse
 try:
