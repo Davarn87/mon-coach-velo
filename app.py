@@ -76,8 +76,7 @@ if st.button("🔄 Analyser ma dernière sortie Strava"):
                 Donne un feedback technique en 2 ou 3 phrases maximum. 
                 Parle de l'intensité, suggère une récupération si nécessaire, et reste motivant.
                 """
-                # ... après avoir récupéré 'activity' ...
-
+                try:
                 # Appel au modèle avec le nom complet
                 model = genai.GenerativeModel('models/gemini-1.5-flash')
                 response = model.generate_content(prompt)
