@@ -9,9 +9,18 @@ REFRESH_TOKEN = st.secrets["STRAVA_REFRESH_TOKEN"]
 GEMINI_KEY = st.secrets["GEMINI_KEY"]
 
 # Configuration Gemini
-genai.configure(api_key=GEMINI_KEY)
-# 1. Utilise le nom complet du modèle stable
-model = genai.GenerativeModel('gemini-1.5-flash-latest')
+# Remplace ta configuration Gemini par ceci pour tester :
+try:
+    genai.configure(api_key=st.secrets["GEMINI_KEY"])
+    # On liste les modèles disponibles pour TA clé
+    available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+    st.write(f"Modèles accessibles : {available_models}")
+    
+    # On prend le premier de la liste (souvent gemini-1.5-flash)
+    model = genai.GenerativeModel(available_models[0])
+except Exception as e:
+    st.error(f"Erreur d'accès aux modèles : {e}")
+
 
 # 2. Utilise un bloc Try/Except plus robuste pour l'analyse
 try:
