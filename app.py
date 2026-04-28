@@ -81,6 +81,7 @@ if st.button("🔄 Analyser ma dernière sortie Strava"):
                 - Puissance moyenne : {watts} W
                 - Dénivelé : {activity.get('total_elevation_gain')} m
                 - Type d'activité : {activity.get('type')}
+Mon FTP est de 207W, analyse si j'étais bien en Endurance (Z2) sur cette sortie"
 
                 Donne un feedback technique en 2 ou 3 phrases maximum. 
                 Parle de l'intensité, suggère une récupération si nécessaire, et reste motivant.
