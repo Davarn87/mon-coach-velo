@@ -8,10 +8,16 @@ CLIENT_SECRET = st.secrets["STRAVA_CLIENT_SECRET"]
 REFRESH_TOKEN = st.secrets["STRAVA_REFRESH_TOKEN"]
 GEMINI_KEY = st.secrets["GEMINI_KEY"]
 
-# Configuration Gemini
-genai.configure(api_key=GEMINI_KEY)
-# Remplace l'ancienne ligne par celle-là :
-model = genai.GenerativeModel('gemini-1.5-flash')
+# 1. Utilise le nom complet du modèle stable
+model = genai.GenerativeModel('models/gemini-1.5-flash')
+
+# 2. Utilise un bloc Try/Except plus robuste pour l'analyse
+try:
+    # On force l'appel au modèle
+    response = model.generate_content(prompt)
+    feedback = response.text
+except Exception as e:
+    feedback = f"Désolé, j'ai eu un petit souci technique pour analyser cette sortie. (Erreur : {str(e)})"
 
 # --- FONCTION : OBTENIR UN JETON VALIDE ---
 def get_strava_access_token():
