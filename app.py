@@ -64,8 +64,19 @@ if st.button("🔄 Analyser ma dernière sortie Strava"):
                 c3.metric("Dénivelé", f"{activity.get('total_elevation_gain')} m")
                 
                 # Feedback IA
-                prompt = f"Analyse cette sortie vélo de {dist:.1f}km avec {watts}W de moyenne. Donne un conseil de pro court."
-                feedback = model.generate_content(prompt).text
+                # Nouveau prompt plus "Pro"
+                prompt = f"""
+                Tu es un coach cycliste expert. Analyse cette sortie Strava :
+                - Nom de la séance : {activity.get('name')}
+                - Distance : {dist:.1f} km
+                - Puissance moyenne : {watts} W
+                - Dénivelé : {activity.get('total_elevation_gain')} m
+                - Type d'activité : {activity.get('type')}
+
+                Donne un feedback technique en 2 ou 3 phrases maximum. 
+                Parle de l'intensité, suggère une récupération si nécessaire, et reste motivant.
+                """
+            feedback = model.generate_content(prompt).text
                 
         st.info(f"🤖 **Le mot du Coach :** {response.text}")
     except Exception as e:
