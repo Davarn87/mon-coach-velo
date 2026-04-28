@@ -8,16 +8,9 @@ CLIENT_SECRET = st.secrets["STRAVA_CLIENT_SECRET"]
 REFRESH_TOKEN = st.secrets["STRAVA_REFRESH_TOKEN"]
 GEMINI_KEY = st.secrets["GEMINI_KEY"]
 
-# 1. Utilise le nom complet du modèle stable
-model = genai.GenerativeModel('models/gemini-1.5-flash')
-
-# 2. Utilise un bloc Try/Except plus robuste pour l'analyse
-try:
-    # On force l'appel au modèle
-    response = model.generate_content(prompt)
-    feedback = response.text
-except Exception as e:
-    feedback = f"Désolé, j'ai eu un petit souci technique pour analyser cette sortie. (Erreur : {str(e)})"
+# Configuration Gemini
+genai.configure(api_key=GEMINI_KEY)
+model = genai.GenerativeModel('gemini-pro')
 
 # --- FONCTION : OBTENIR UN JETON VALIDE ---
 def get_strava_access_token():
@@ -49,27 +42,23 @@ if st.button("🔄 Analyser ma dernière sortie Strava"):
             token = get_strava_access_token()
             activity = get_last_strava_activity(token)
             
-            # ... après avoir récupéré 'activity' ...
-
-if activity:
-    st.markdown(f"### 📊 {activity['name']}")
-    
-    # Extraction des données
-    watts = activity.get('average_watts', "N/A")
-    dist = activity.get('distance', 0) / 1000
-    
-    # Préparation du prompt
-    prompt = f"Analyse cette sortie vélo de {dist:.1f}km avec {watts}W de moyenne. Donne un conseil court et motivant."
-
-    try:
-        # Appel au modèle avec le nom complet
-        model = genai.GenerativeModel('models/gemini-1.5-flash')
-        response = model.generate_content(prompt)
-        
-        st.info(f"🤖 **Le mot du Coach :** {response.text}")
-    except Exception as e:
-        st.error(f"L'IA est indisponible : {e}")
+            if activity:
+                st.markdown(f"### 📊 {activity['name']}")
                 
+                # Calcul de l'intensité (Strava donne les watts moyens)
+                watts = activity.get('average_watts', 0)
+                dist = activity.get('distance', 0) / 1000 # en km
+                
+                c1, c2, c3 = st.columns(3)
+                c1.metric("Distance", f"{dist:.1f} km")
+                c2.metric("Watts Moy.", f"{watts} W")
+                c3.metric("Dénivelé", f"{activity.get('total_elevation_gain')} m")
+                
+                # Feedback IA
+                prompt = f"Analyse cette sortie vélo de {dist:.1f}km avec {watts}W de moyenne. Donne un conseil de pro court."
+                feedback = model.generate_content(prompt).text
+                
+                st.info(f"🤖 **Conseil Gemini :** {feedback}")
             else:
                 st.warning("Aucune activité trouvée sur Strava.")
         except Exception as e:
