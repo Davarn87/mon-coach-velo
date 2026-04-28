@@ -76,9 +76,9 @@ if st.button("🔄 Analyser ma dernière sortie Strava"):
                 Donne un feedback technique en 2 ou 3 phrases maximum. 
                 Parle de l'intensité, suggère une récupération si nécessaire, et reste motivant.
                 """
-            feedback = model.generate_content(prompt).text
+                feedback = model.generate_content(prompt).text
                 
-        st.info(f"🤖 **Le mot du Coach :** {response.text}")
+                st.info(f"🤖 **Le mot du Coach :** {response.text}")
     except Exception as e:
         st.error(f"L'IA est indisponible : {e}")      
                 st.info(f"🤖 **Conseil Gemini :** {feedback}")
