@@ -85,7 +85,4 @@ if st.button("🔄 Analyser ma dernière sortie Strava"):
                 st.info(f"🤖 **Le mot du Coach :** {response.text}")
     except Exception as e:
         st.error(f"L'IA est indisponible : {e}")
-            else:
-                st.warning("Aucune activité trouvée sur Strava.")
-    except Exception as e:
-        st.error(f"Erreur de connexion Strava : {e}")
+          
