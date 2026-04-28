@@ -2,8 +2,8 @@ import streamlit as st
 import requests
 
 # Remplace par TES vrais identifiants Strava (ceux de ton dashboard API)
-MY_CLIENT_ID = "TON_CLIENT_ID"
-MY_CLIENT_SECRET = "TON_CLIENT_SECRET"
+MY_CLIENT_ID = "193233"
+MY_CLIENT_SECRET = "fc51721655e63a69a49aeba6f0287b54e29ed410"
 
 st.title("🔑 Strava Token Generator")
 
