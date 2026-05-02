@@ -9,8 +9,8 @@ REFRESH_TOKEN = st.secrets["STRAVA_REFRESH_TOKEN"]
 GEMINI_KEY = st.secrets["GEMINI_KEY"]
 
 # Configuration Gemini
-    genai.configure(api_key=st.secrets["GEMINI_KEY"])
-    model = genai.GenerativeModel('models/gemini-2.5-flash')
+genai.configure(api_key=st.secrets["GEMINI_KEY"])
+model = genai.GenerativeModel('models/gemini-2.5-flash')
 # Remplace ta configuration Gemini par ceci pour tester :
 #try:
  #   genai.configure(api_key=st.secrets["GEMINI_KEY"])
