@@ -45,13 +45,67 @@ def get_strava_access_token():
     return res.json()['access_token']
 
 # --- FONCTION : RÉCUPÉRER LA DERNIÈRE ACTIVITÉ ---
-def get_last_strava_activity(access_token):
+import datetime
+
+# --- FONCTION : RÉCUPÉRER LES ACTIVITÉS DE LA SEMAINE ---
+def get_weekly_activities(access_token):
     headers = {'Authorization': f"Bearer {access_token}"}
-    # On récupère les activités du sportif authentifié
-    res = requests.get("https://www.strava.com/api/v3/athlete/activities?per_page=1", headers=headers)
-    if res.status_code == 200:
-        return res.json()[0]
-    return None
+    # Calcul du timestamp d'il y a 7 jours
+    seven_days_ago = int((datetime.datetime.now() - datetime.timedelta(days=7)).timestamp())
+    
+    url = f"https://www.strava.com/api/v3/athlete/activities?after={seven_days_ago}&per_page=50"
+    res = requests.get(url, headers=headers)
+    return res.json() if res.status_code == 200 else []
+
+# --- INTERFACE ---
+st.title("📅 Bilan Hebdomadaire & Objectifs")
+
+if st.button("📊 Analyser ma semaine"):
+    with st.spinner("Analyse de la semaine en cours..."):
+        token = get_strava_access_token()
+        activities = get_weekly_activities(token)
+        
+        if activities:
+            # Calculs des totaux
+            total_dist = sum(a['distance'] for a in activities) / 1000
+            total_time_min = sum(a['moving_time'] for a in activities) / 60
+            total_elev = sum(a.get('total_elevation_gain', 0) for a in activities)
+            nb_seances = len(activities)
+            
+            # Affichage des stats
+            col1, col2, col3 = st.columns(3)
+            col1.metric("Distance Totale", f"{total_dist:.1f} km")
+            col2.metric("Temps Total", f"{total_time_min/60:.1f} h", 
+                        delta=f"{ (total_time_min/60) - st.secrets['OBJ_HEURES_SEMAINE']:.1f} h vs Obj")
+            col3.metric("Dénivelé", f"{total_elev} m",
+                        delta=f"{total_elev - st.secrets['OBJ_DENIVELE_SEMAINE']} m vs Obj")
+
+            # --- PROMPT POUR LE BILAN IA ---
+            prompt_bilan = f"""
+            Tu es un coach expert. Voici le bilan de ma semaine de vélo :
+            - Nombre de séances : {nb_seances}
+            - Temps total : {total_time_min/60:.1f} heures (Objectif : {st.secrets['OBJ_HEURES_SEMAINE']}h)
+            - Dénivelé total : {total_elev} m (Objectif : {st.secrets['OBJ_DENIVELE_SEMAINE']}m)
+            - Distance totale : {total_dist:.1f} km
+
+            Analyse si j'ai respecté ma charge d'entraînement. 
+            Si je suis au-dessus, mets-moi en garde contre le surentraînement. 
+            Si je suis en-dessous, donne-moi un conseil pour rattraper ou ajuste l'objectif.
+            Sois précis et motivant.
+            """
+            
+            model = genai.GenerativeModel('models/gemini-2.5-flash')
+            response = model.generate_content(prompt_bilan)
+            
+            st.success("🤖 **Bilan du Coach :**")
+            st.write(response.text)
+            
+            # Petit détail des séances
+            with st.expander("Voir le détail des séances"):
+                for a in activities:
+                    st.write(f"- {a['start_date_local'][:10]} : {a['name']} ({a['distance']/1000:.1f}km)")
+        else:
+            st.warning("Aucune activité trouvée ces 7 derniers jours.")
 
 # --- INTERFACE ---
 st.title("🚴‍♂️ Coach IA via Strava")
