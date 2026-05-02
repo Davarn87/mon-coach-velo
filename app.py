@@ -9,17 +9,19 @@ REFRESH_TOKEN = st.secrets["STRAVA_REFRESH_TOKEN"]
 GEMINI_KEY = st.secrets["GEMINI_KEY"]
 
 # Configuration Gemini
+    genai.configure(api_key=GEMINI_KEY)
+    model = genai.GenerativeModel('models/gemini-2.5-flash')
 # Remplace ta configuration Gemini par ceci pour tester :
-try:
-    genai.configure(api_key=st.secrets["GEMINI_KEY"])
+#try:
+ #   genai.configure(api_key=st.secrets["GEMINI_KEY"])
     # On liste les modèles disponibles pour TA clé
-    available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-    st.write(f"Modèles accessibles : {available_models}")
+ #   available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+ #   st.write(f"Modèles accessibles : {available_models}")
     
     # On prend le premier de la liste (souvent gemini-1.5-flash)
-    model = genai.GenerativeModel(available_models[0])
-except Exception as e:
-    st.error(f"Erreur d'accès aux modèles : {e}")
+ #   model = genai.GenerativeModel(available_models[0])
+#except Exception as e:
+ #   st.error(f"Erreur d'accès aux modèles : {e}")
 
 
 # 2. Utilise un bloc Try/Except plus robuste pour l'analyse
@@ -88,7 +90,7 @@ Mon FTP est de 207W, analyse si j'étais bien en Endurance (Z2) sur cette sortie
                 """
                 try:
                     # Appel au modèle avec le nom complet
-                    model = genai.GenerativeModel(available_models[0])
+                    model = genai.GenerativeModel('models/gemini-2.5-flash')
                     response = model.generate_content(prompt)
         
                     st.info(f"🤖 **Le mot du Coach :** {response.text}")
