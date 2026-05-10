@@ -55,17 +55,21 @@ if st.button("🚀 Synchroniser & Analyser ma forme"):
         
         if activities:
             # --- TRAITEMENT DES DONNÉES ---
+            # --- REMPLACE LE BLOC DE TRAITEMENT DES DONNÉES PAR CELUI-CI ---
+
             df = pd.DataFrame([
                 {
                     'Date': a['start_date_local'][:10],
                     'Distance': a['distance'] / 1000,
-                    'Charge': a.get('suffer_score', 0) if a.get('suffer_score') else 0,
-                    'Watts': a.get('average_watts', 0)
+                    'Duree_min': a['moving_time'] / 60,
+                    'Watts': a.get('average_watts', 0) if a.get('average_watts') else 0,
+                    # Si Strava n'a pas de suffer_score, on l'estime (Temps * Intensité relative)
+                    'Charge': a.get('suffer_score') if a.get('suffer_score') else (a['moving_time'] / 60) * ( (a.get('average_watts', 150) / FTP) ** 2 * 100 / 60 )
                 } for a in activities
             ])
-            df['Date'] = pd.to_datetime(df['Date'])
-            df_daily = df.groupby('Date').sum().reset_index().sort_values('Date')
-
+            
+            # On s'assure que 'Charge' n'est jamais nul pour le graphique
+            df['Charge'] = df['Charge'].fillna(df['Duree_min'] * 0.8) # Valeur par défaut basée sur le temps
             # --- AFFICHAGE DES MÉTRIQUES ---
             col1, col2, col3 = st.columns(3)
             
