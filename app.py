@@ -56,16 +56,26 @@ if st.button("🚀 Synchroniser & Analyser ma forme"):
         if activities:
             # --- REMPLACE LE BLOC DE TRAITEMENT DES DONNÉES PAR CELUI-CI ---
 
+            # 1. Création du DataFrame
             df = pd.DataFrame([
                 {
                     'Date': a['start_date_local'][:10],
                     'Distance': a['distance'] / 1000,
                     'Duree_min': a['moving_time'] / 60,
                     'Watts': a.get('average_watts', 0) if a.get('average_watts') else 0,
-                    # Si Strava n'a pas de suffer_score, on l'estime (Temps * Intensité relative)
                     'Charge': a.get('suffer_score') if a.get('suffer_score') else (a['moving_time'] / 60) * ( (a.get('average_watts', 150) / FTP) ** 2 * 100 / 60 )
                 } for a in activities
             ])
+
+            # 2. LA LIGNE CRUCIALE : Convertir la colonne Date en vraies dates Python
+            df['Date'] = pd.to_datetime(df['Date'])
+
+            # 3. Maintenant la comparaison fonctionnera sans erreur
+            now = datetime.datetime.now()
+            seven_days_ago = now - datetime.timedelta(days=7)
+            
+            # On filtre pour les 7 derniers jours
+            last_7_days = df[df['Date'] >= seven_days_ago]
             
             # On s'assure que 'Charge' n'est jamais nul pour le graphique
             df['Charge'] = df['Charge'].fillna(df['Duree_min'] * 0.8) # Valeur par défaut basée sur le temps
