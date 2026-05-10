@@ -37,7 +37,7 @@ def get_strava_access_token():
     res = requests.post("https://www.strava.com/oauth/token", data=payload)
     return res.json().get('access_token')
 
-def get_activities(access_token, days=30):
+def get_activities(access_token, days=45):
     headers = {'Authorization': f"Bearer {access_token}"}
     after = int((datetime.datetime.now() - datetime.timedelta(days=days)).timestamp())
     url = f"https://www.strava.com/api/v3/athlete/activities?after={after}&per_page=100"
