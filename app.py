@@ -47,15 +47,59 @@ def get_strava_access_token():
 # --- FONCTION : RÉCUPÉRER LA DERNIÈRE ACTIVITÉ ---
 import datetime
 
-# --- FONCTION : RÉCUPÉRER LES ACTIVITÉS DE LA SEMAINE ---
-def get_weekly_activities(access_token):
+# --- NOUVEAU : RÉCUPÉRATION LONG TERME (30 JOURS) ---
+def get_aixle_context(access_token):
     headers = {'Authorization': f"Bearer {access_token}"}
-    # Calcul du timestamp d'il y a 7 jours
-    seven_days_ago = int((datetime.datetime.now() - datetime.timedelta(days=7)).timestamp())
-    
-    url = f"https://www.strava.com/api/v3/athlete/activities?after={seven_days_ago}&per_page=50"
+    thirty_days_ago = int((datetime.datetime.now() - datetime.timedelta(days=30)).timestamp())
+    url = f"https://www.strava.com/api/v3/athlete/activities?after={thirty_days_ago}"
     res = requests.get(url, headers=headers)
     return res.json() if res.status_code == 200 else []
+
+# --- DANS L'INTERFACE ---
+if st.button("🚀 Générer mon plan adaptatif"):
+    activities = get_aixle_context(token)
+    
+    # 1. Séparation SEMAINE vs MOIS
+    last_7_days = [a for a in activities if (datetime.datetime.now() - datetime.datetime.strptime(a['start_date'][:10], '%Y-%m-%d')).days <= 7]
+    
+    # 2. Calcul des indicateurs clés
+    load_week = sum(a.get('suffer_score', 0) for a in last_7_days) # Strava Suffer Score
+    load_month = sum(a.get('suffer_score', 0) for a in activities) / 4
+    
+    # Ratio d'Aixle : Fatigue vs Forme
+    freshness_ratio = load_week / (load_month if load_month > 0 else 1)
+
+    # 3. PROMPT "AIXLE" POUR GEMINI 2.5
+    prompt_aixle = f"""
+    Tu es un coach IA de haut niveau type Aixle. Analyse mes données :
+    - Charge de la semaine actuelle : {load_week} (Suffer Score)
+    - Charge moyenne mensuelle : {load_month:.1f}
+    - Ratio de fraîcheur : {freshness_ratio:.2f} (Idéal entre 0.8 et 1.3)
+    - Objectif annuel 2026 : {st.secrets['OBJECTIF_ANNUEL']} km
+    - Événement cible : {st.secrets['NOM_COURSE']} dans {st.secrets['JOURS_AVANT_COURSE']} jours.
+
+    ### MISSION :
+    1. Analyse mon état de fatigue (Freshness Ratio).
+    2. Dis-moi si je suis "En forme", "En sur-entraînement" ou "En reprise".
+    3. PROPOSE LA SÉANCE PRÉCISE POUR DEMAIN (ex: Intervalles, Endurance, ou Repos total).
+    4. Donne un conseil nutritionnel ou de récupération spécifique à ma charge actuelle.
+    """
+    
+    model = genai.GenerativeModel('models/gemini-2.5-flash')
+    response = model.generate_content(prompt_aixle)
+    
+    # Affichage type Dashboard Sportif
+    st.header("⚡ Votre Diagnostic Aixle-IA")
+    
+    c1, c2 = st.columns(2)
+    with c1:
+        st.metric("État de forme (Ratio)", f"{freshness_ratio:.2f}", delta="Optimal" if 0.8 <= freshness_ratio <= 1.2 else "Ajuster")
+    with c2:
+        st.metric("Charge Hebdo", f"{load_week} pts")
+
+    st.markdown("---")
+    st.subheader("📋 Prescription du Coach")
+    st.write(response.text)
 
 # --- INTERFACE ---
 st.title("📅 Bilan Hebdomadaire & Objectifs")
