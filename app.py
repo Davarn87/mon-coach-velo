@@ -56,7 +56,7 @@ if st.button("🚀 Synchroniser & Analyser ma forme"):
         if activities:
             # --- REMPLACE LE BLOC DE TRAITEMENT DES DONNÉES PAR CELUI-CI ---
 
-            # 1. Création du DataFrame
+            # 1. Création du DataFrame initial
             df = pd.DataFrame([
                 {
                     'Date': a['start_date_local'][:10],
@@ -67,15 +67,24 @@ if st.button("🚀 Synchroniser & Analyser ma forme"):
                 } for a in activities
             ])
 
-            # 2. LA LIGNE CRUCIALE : Convertir la colonne Date en vraies dates Python
+            # 2. Conversion indispensable des dates
             df['Date'] = pd.to_datetime(df['Date'])
 
-            # 3. Maintenant la comparaison fonctionnera sans erreur
+            # 3. CRÉATION DE df_daily (Groupement par jour)
+            # C'est ce qui manquait pour le graphique et les calculs !
+            df_daily = df.groupby('Date').sum().reset_index().sort_values('Date')
+
+            # 4. Calcul des métriques hebdomadaires
             now = datetime.datetime.now()
             seven_days_ago = now - datetime.timedelta(days=7)
-            
-            # On filtre pour les 7 derniers jours
             last_7_days = df[df['Date'] >= seven_days_ago]
+            
+            load_week = last_7_days['Charge'].sum()
+            
+            # Calcul de la moyenne mensuelle via df_daily
+            load_month_avg = df_daily['Charge'].sum() / 4
+            
+            ratio = load_week / load_month_avg if load_month_avg > 0 else 1.0
             
             # On s'assure que 'Charge' n'est jamais nul pour le graphique
             df['Charge'] = df['Charge'].fillna(df['Duree_min'] * 0.8) # Valeur par défaut basée sur le temps
