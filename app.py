@@ -1,198 +1,136 @@
 import streamlit as st
 import requests
 import google.generativeai as genai
-
-# --- SECRETS STRAVA ---
-CLIENT_ID = st.secrets["STRAVA_CLIENT_ID"]
-CLIENT_SECRET = st.secrets["STRAVA_CLIENT_SECRET"]
-REFRESH_TOKEN = st.secrets["STRAVA_REFRESH_TOKEN"]
-GEMINI_KEY = st.secrets["GEMINI_KEY"]
-
-# Configuration Gemini
-genai.configure(api_key=st.secrets["GEMINI_KEY"])
-model = genai.GenerativeModel('models/gemini-2.5-flash')
-# Remplace ta configuration Gemini par ceci pour tester :
-#try:
- #   genai.configure(api_key=st.secrets["GEMINI_KEY"])
-    # On liste les modèles disponibles pour TA clé
- #   available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
- #   st.write(f"Modèles accessibles : {available_models}")
-    
-    # On prend le premier de la liste (souvent gemini-1.5-flash)
- #   model = genai.GenerativeModel(available_models[0])
-#except Exception as e:
- #   st.error(f"Erreur d'accès aux modèles : {e}")
-
-
-# 2. Utilise un bloc Try/Except plus robuste pour l'analyse
-try:
-    # On force l'appel au modèle
-    response = model.generate_content(prompt)
-    feedback = response.text
-except Exception as e:
-    feedback = f"Désolé, j'ai eu un petit souci technique pour analyser cette sortie. (Erreur : {str(e)})"
-
-# --- FONCTION : OBTENIR UN JETON VALIDE ---
-def get_strava_access_token():
-    payload = {
-        'client_id': CLIENT_ID,
-        'client_secret': CLIENT_SECRET,
-        'refresh_token': REFRESH_TOKEN,
-        'grant_type': "refresh_token",
-        'f': 'json'
-    }
-    res = requests.post("https://www.strava.com/oauth/token", data=payload)
-    return res.json()['access_token']
-
-# --- FONCTION : RÉCUPÉRER LA DERNIÈRE ACTIVITÉ ---
+import pandas as pd
 import datetime
 
-# --- NOUVEAU : RÉCUPÉRATION LONG TERME (30 JOURS) ---
-def get_aixle_context(access_token):
+# --- CONFIGURATION DE LA PAGE ---
+st.set_page_config(page_title="Aixle Coach IA 2026", page_icon="🚴‍♂️", layout="wide")
+
+# --- CHARGEMENT DES SECRETS ---
+try:
+    GENAI_KEY = st.secrets["GEMINI_KEY"]
+    STRAVA_CLIENT_ID = st.secrets["STRAVA_CLIENT_ID"]
+    STRAVA_CLIENT_SECRET = st.secrets["STRAVA_CLIENT_SECRET"]
+    STRAVA_REFRESH_TOKEN = st.secrets["STRAVA_REFRESH_TOKEN"]
+    
+    # Paramètres de coaching
+    FTP = 208  # Ta FTP actuelle
+    OBJ_ANNUEL = st.secrets.get("OBJECTIF_ANNUEL", 5000)
+    NOM_COURSE = st.secrets.get("NOM_COURSE", "Objectif Principal")
+    JOURS_AVANT_COURSE = st.secrets.get("JOURS_AVANT_COURSE", 30)
+    
+    genai.configure(api_key=GENAI_KEY)
+    model = genai.GenerativeModel('models/gemini-2.5-flash')
+except Exception as e:
+    st.error(f"Erreur de configuration (Secrets) : {e}")
+    st.stop()
+
+# --- FONCTIONS TECHNIQUES ---
+def get_strava_access_token():
+    payload = {
+        'client_id': STRAVA_CLIENT_ID,
+        'client_secret': STRAVA_CLIENT_SECRET,
+        'refresh_token': STRAVA_REFRESH_TOKEN,
+        'grant_type': 'refresh_token'
+    }
+    res = requests.post("https://www.strava.com/oauth/token", data=payload)
+    return res.json().get('access_token')
+
+def get_activities(access_token, days=30):
     headers = {'Authorization': f"Bearer {access_token}"}
-    thirty_days_ago = int((datetime.datetime.now() - datetime.timedelta(days=30)).timestamp())
-    url = f"https://www.strava.com/api/v3/athlete/activities?after={thirty_days_ago}"
+    after = int((datetime.datetime.now() - datetime.timedelta(days=days)).timestamp())
+    url = f"https://www.strava.com/api/v3/athlete/activities?after={after}&per_page=100"
     res = requests.get(url, headers=headers)
     return res.json() if res.status_code == 200 else []
 
-# --- DANS L'INTERFACE ---
-if st.button("🚀 Générer mon plan adaptatif"):
-    activities = get_aixle_context(token)
-    
-    # 1. Séparation SEMAINE vs MOIS
-    last_7_days = [a for a in activities if (datetime.datetime.now() - datetime.datetime.strptime(a['start_date'][:10], '%Y-%m-%d')).days <= 7]
-    
-    # 2. Calcul des indicateurs clés
-    load_week = sum(a.get('suffer_score', 0) for a in last_7_days) # Strava Suffer Score
-    load_month = sum(a.get('suffer_score', 0) for a in activities) / 4
-    
-    # Ratio d'Aixle : Fatigue vs Forme
-    freshness_ratio = load_week / (load_month if load_month > 0 else 1)
+# --- INTERFACE PRINCIPALE ---
+st.title("⚡ Aixle Coach IA : Dashboard 2026")
+st.markdown(f"**Profil Athlète :** FTP {FTP}W | Objectif : {NOM_COURSE} (J-{JOURS_AVANT_COURSE})")
 
-    # 3. PROMPT "AIXLE" POUR GEMINI 2.5
-    prompt_aixle = f"""
-    Tu es un coach IA de haut niveau type Aixle. Analyse mes données :
-    - Charge de la semaine actuelle : {load_week} (Suffer Score)
-    - Charge moyenne mensuelle : {load_month:.1f}
-    - Ratio de fraîcheur : {freshness_ratio:.2f} (Idéal entre 0.8 et 1.3)
-    - Objectif annuel 2026 : {st.secrets['OBJECTIF_ANNUEL']} km
-    - Événement cible : {st.secrets['NOM_COURSE']} dans {st.secrets['JOURS_AVANT_COURSE']} jours.
-
-    ### MISSION :
-    1. Analyse mon état de fatigue (Freshness Ratio).
-    2. Dis-moi si je suis "En forme", "En sur-entraînement" ou "En reprise".
-    3. PROPOSE LA SÉANCE PRÉCISE POUR DEMAIN (ex: Intervalles, Endurance, ou Repos total).
-    4. Donne un conseil nutritionnel ou de récupération spécifique à ma charge actuelle.
-    """
-    
-    model = genai.GenerativeModel('models/gemini-2.5-flash')
-    response = model.generate_content(prompt_aixle)
-    
-    # Affichage type Dashboard Sportif
-    st.header("⚡ Votre Diagnostic Aixle-IA")
-    
-    c1, c2 = st.columns(2)
-    with c1:
-        st.metric("État de forme (Ratio)", f"{freshness_ratio:.2f}", delta="Optimal" if 0.8 <= freshness_ratio <= 1.2 else "Ajuster")
-    with c2:
-        st.metric("Charge Hebdo", f"{load_week} pts")
-
-    st.markdown("---")
-    st.subheader("📋 Prescription du Coach")
-    st.write(response.text)
-
-# --- INTERFACE ---
-st.title("📅 Bilan Hebdomadaire & Objectifs")
-
-if st.button("📊 Analyser ma semaine"):
-    with st.spinner("Analyse de la semaine en cours..."):
+if st.button("🚀 Synchroniser & Analyser ma forme"):
+    with st.spinner("Récupération des données Strava..."):
         token = get_strava_access_token()
-        activities = get_weekly_activities(token)
+        activities = get_activities(token)
         
         if activities:
-            # Calculs des totaux
-            total_dist = sum(a['distance'] for a in activities) / 1000
-            total_time_min = sum(a['moving_time'] for a in activities) / 60
-            total_elev = sum(a.get('total_elevation_gain', 0) for a in activities)
-            nb_seances = len(activities)
-            
-            # Affichage des stats
+            # --- TRAITEMENT DES DONNÉES ---
+            df = pd.DataFrame([
+                {
+                    'Date': a['start_date_local'][:10],
+                    'Distance': a['distance'] / 1000,
+                    'Charge': a.get('suffer_score', 0) if a.get('suffer_score') else 0,
+                    'Watts': a.get('average_watts', 0)
+                } for a in activities
+            ])
+            df['Date'] = pd.to_datetime(df['Date'])
+            df_daily = df.groupby('Date').sum().reset_index().sort_values('Date')
+
+            # --- AFFICHAGE DES MÉTRIQUES ---
             col1, col2, col3 = st.columns(3)
-            col1.metric("Distance Totale", f"{total_dist:.1f} km")
-            col2.metric("Temps Total", f"{total_time_min/60:.1f} h", 
-                        delta=f"{ (total_time_min/60) - st.secrets['OBJ_HEURES_SEMAINE']:.1f} h vs Obj")
-            col3.metric("Dénivelé", f"{total_elev} m",
-                        delta=f"{total_elev - st.secrets['OBJ_DENIVELE_SEMAINE']} m vs Obj")
+            
+            last_7_days = df[df['Date'] >= (datetime.datetime.now() - datetime.timedelta(days=7))]
+            load_week = last_7_days['Charge'].sum()
+            load_month_avg = df_daily['Charge'].sum() / 4
+            ratio = load_week / load_month_avg if load_month_avg > 0 else 1.0
+            
+            with col1:
+                st.metric("Charge Hebdo", f"{int(load_week)} pts")
+            with col2:
+                status = "Optimal" if 0.8 <= ratio <= 1.3 else "Fatigue" if ratio > 1.3 else "Reprise"
+                st.metric("Ratio de Forme", f"{ratio:.2f}", delta=status)
+            with col3:
+                total_km = df['Distance'].sum()
+                st.metric("Distance (30j)", f"{total_km:.1f} km")
 
-            # --- PROMPT POUR LE BILAN IA ---
-            prompt_bilan = f"""
-            Tu es un coach expert. Voici le bilan de ma semaine de vélo :
-            - Nombre de séances : {nb_seances}
-            - Temps total : {total_time_min/60:.1f} heures (Objectif : {st.secrets['OBJ_HEURES_SEMAINE']}h)
-            - Dénivelé total : {total_elev} m (Objectif : {st.secrets['OBJ_DENIVELE_SEMAINE']}m)
-            - Distance totale : {total_dist:.1f} km
+            # --- GRAPHIQUE DE CHARGE ---
+            st.subheader("📈 Courbe de charge d'entraînement (PMC)")
+            st.area_chart(df_daily.set_index('Date')['Charge'], color="#FC4C02")
 
-            Analyse si j'ai respecté ma charge d'entraînement. 
-            Si je suis au-dessus, mets-moi en garde contre le surentraînement. 
-            Si je suis en-dessous, donne-moi un conseil pour rattraper ou ajuste l'objectif.
-            Sois précis et motivant.
+            # --- ANALYSE IA GÉNÉRATIVE ---
+            st.markdown("---")
+            st.subheader("📋 Prescription de l'IA Coach")
+            
+            prompt = f"""
+            Tu es un coach cycliste expert type Aixle.
+            Données de l'athlète :
+            - FTP : {FTP} Watts
+            - Historique charge (30j) : {df_daily['Charge'].tolist()}
+            - Ratio actuel : {ratio:.2f}
+            - Jours restants avant {NOM_COURSE} : {JOURS_AVANT_COURSE}
+
+            MISSION :
+            1. Analyse l'état de fraîcheur.
+            2. Génère une séance précise pour demain en utilisant les zones basées sur la FTP de {FTP}W :
+               - Z1 (Récup) : < 115W
+               - Z2 (Endurance) : 115-155W
+               - Z3 (Tempo) : 155-185W
+               - Z4 (Seuil) : 185-220W
+               - Z5 (PMA) : > 220W
+            
+            FORMAT :
+            - Diagnostic de forme
+            - Bloc "SÉANCE DU JOUR" structuré (Échauffement, Corps, Récup) avec les Watts cibles.
+            - Conseil nutritionnel.
             """
             
-            model = genai.GenerativeModel('models/gemini-2.5-flash')
-            response = model.generate_content(prompt_bilan)
-            
-            st.success("🤖 **Bilan du Coach :**")
-            st.write(response.text)
-            
-            # Petit détail des séances
-            with st.expander("Voir le détail des séances"):
-                for a in activities:
-                    st.write(f"- {a['start_date_local'][:10]} : {a['name']} ({a['distance']/1000:.1f}km)")
+            try:
+                response = model.generate_content(prompt)
+                st.success("Analyse terminée")
+                
+                # Style "Carte d'entraînement"
+                st.markdown(f"""
+                <div style="background-color: #262730; padding: 25px; border-radius: 15px; border-left: 8px solid #FC4C02; color: white;">
+                    {response.text.replace('##', '###')}
+                </div>
+                """, unsafe_allow_html=True)
+                
+            except Exception as e:
+                st.error(f"Erreur Gemini : {e}")
         else:
-            st.warning("Aucune activité trouvée ces 7 derniers jours.")
+            st.warning("Aucune activité trouvée. Vérifie tes permissions Strava (scope:activity:read_all).")
 
-# --- INTERFACE ---
-st.title("🚴‍♂️ Coach IA via Strava")
-
-if st.button("🔄 Analyser ma dernière sortie Strava"):
-    with st.spinner("Récupération des données Strava..."):
-        try:
-            token = get_strava_access_token()
-            activity = get_last_strava_activity(token)
-            
-            if activity:
-                st.markdown(f"### 📊 {activity['name']}")
-                
-                # Calcul de l'intensité (Strava donne les watts moyens)
-                watts = activity.get('average_watts', 0)
-                dist = activity.get('distance', 0) / 1000 # en km
-                
-                c1, c2, c3 = st.columns(3)
-                c1.metric("Distance", f"{dist:.1f} km")
-                c2.metric("Watts Moy.", f"{watts} W")
-                c3.metric("Dénivelé", f"{activity.get('total_elevation_gain')} m")
-                
-                # Feedback IA
-                # Nouveau prompt plus "Pro"
-                prompt = f"""
-                Tu es un coach cycliste expert. Analyse cette sortie Strava :
-                - Nom de la séance : {activity.get('name')}
-                - Distance : {dist:.1f} km
-                - Puissance moyenne : {watts} W
-                - Dénivelé : {activity.get('total_elevation_gain')} m
-                - Type d'activité : {activity.get('type')}
-Mon FTP est de 207W, analyse si j'étais bien en Endurance (Z2) sur cette sortie"
-
-                Donne un feedback technique en 2 ou 3 phrases maximum. 
-                Parle de l'intensité, suggère une récupération si nécessaire, et reste motivant.
-                """
-                try:
-                    # Appel au modèle avec le nom complet
-                    model = genai.GenerativeModel('models/gemini-2.5-flash')
-                    response = model.generate_content(prompt)
-        
-                    st.info(f"🤖 **Le mot du Coach :** {response.text}")
-                except Exception as e:
-                    st.error(f"L'IA est indisponible : {e}")
-        except Exception as e:
-            st.error(f"Erreur de connexion Strava : {e}")
+# --- FOOTER ---
+st.sidebar.markdown("---")
+st.sidebar.write("🦾 Powered by Gemini 2.5 Flash")
+st.sidebar.write(f"Cible 2026 : {st.secrets.get('OBJECTIF_ANNUEL', 5000)} km")
